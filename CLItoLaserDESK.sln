@@ -1,0 +1,42 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.14.36109.1
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CLItoLaserDESK", "CLItoLaserDESK\CLItoLaserDESK.csproj", "{E2D07074-0C60-4ACE-901A-EF0F9F509633}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CLItoLaserDESK.Core", "CLItoLaserDESK.Core\CLItoLaserDESK.Core.csproj", "{870E8F05-C3D5-455F-ACD9-C3ADAA4B1D58}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CLItoLaserDESK.LaserDESKAPI", "CLItoLaserDESK.LaserDESKAPI\CLItoLaserDESK.LaserDESKAPI.csproj", "{C4E758D2-37A7-43B8-816B-3F21D5A82A04}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{8EC462FD-D22E-90A8-E5CE-7E832BA40C5D}"
+	ProjectSection(SolutionItems) = preProject
+		Dependencies\SLLDRemoteControl.dll = Dependencies\SLLDRemoteControl.dll
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{E2D07074-0C60-4ACE-901A-EF0F9F509633}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E2D07074-0C60-4ACE-901A-EF0F9F509633}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E2D07074-0C60-4ACE-901A-EF0F9F509633}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E2D07074-0C60-4ACE-901A-EF0F9F509633}.Release|Any CPU.Build.0 = Release|Any CPU
+		{870E8F05-C3D5-455F-ACD9-C3ADAA4B1D58}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{870E8F05-C3D5-455F-ACD9-C3ADAA4B1D58}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{870E8F05-C3D5-455F-ACD9-C3ADAA4B1D58}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{870E8F05-C3D5-455F-ACD9-C3ADAA4B1D58}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C4E758D2-37A7-43B8-816B-3F21D5A82A04}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C4E758D2-37A7-43B8-816B-3F21D5A82A04}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C4E758D2-37A7-43B8-816B-3F21D5A82A04}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C4E758D2-37A7-43B8-816B-3F21D5A82A04}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {CFDCF826-BCA5-4F5A-BBDC-B68D0B4A5A30}
+	EndGlobalSection
+EndGlobal
