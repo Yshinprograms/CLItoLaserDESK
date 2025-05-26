@@ -11,4 +11,10 @@
     <PackageReference Include="netDxf" Version="2023.11.10" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Reference Include="SLLDRemoteControl">
+      <HintPath>..\..\..\..\..\..\..\Program Files\SCANLAB\laserDesk\Remote\SLLDRemoteControl.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
 </Project>
