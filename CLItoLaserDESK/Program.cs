@@ -16,7 +16,7 @@ namespace CLItoLaserDESK // Your main console application's namespace
 
             // --- Configuration ---
             string colainExecutablePath = "colain_parser.exe";
-            string cliInputFilePath = "complex.cli";
+            string cliInputFilePath = "Tube.cli";
             bool isLongCliFormat = true;
             string dxfOutputDirectory = Path.Combine(AppContext.BaseDirectory, "DXF_Output");
             string jsonOutputDirectory = Path.Combine(AppContext.BaseDirectory, "JSON_Output"); // Output JSONs
