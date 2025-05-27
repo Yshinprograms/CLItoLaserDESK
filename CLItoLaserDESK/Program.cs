@@ -88,7 +88,8 @@ namespace CLItoLaserDESK // Your main console application's namespace
 
                         // Create a descriptive filename for each DXF
                         string layerHeightStr = currentLayer.Height.ToString("F3", CultureInfo.InvariantCulture).Replace('.', '_');
-                        string dxfFileName = $"Layer_{i:D4}_Z_{layerHeightStr}.dxf"; // e.g., Layer_0000_Z_14_500.dxf
+                        //string dxfFileName = $"Layer_{i:D4}_Z_{layerHeightStr}.dxf";
+                        string dxfFileName = $"Layer_{i:D4}.dxf";
                         string fullDxfPath = Path.Combine(dxfOutputDirectory, dxfFileName);
 
                         Console.WriteLine($"  Generating DXF for Layer {i} (Height: {currentLayer.Height}). Output: {Path.GetFileName(fullDxfPath)}");
