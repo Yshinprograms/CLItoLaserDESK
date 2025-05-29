@@ -1,183 +1,131 @@
 ﻿// File: CLItoLaserDESK\Program.cs
-
 using System;
 using System.IO;
 using System.Threading.Tasks;
-using System.Globalization;
-using CLItoLaserDESK.Core;
-using CLItoLaserDESK.Core.Models;
-using CLItoLaserDESK.LaserDeskAPI;  // To access ILaserDeskService and LaserDeskService
+using CLItoLaserDESK.LaserDeskAPI; // Import the API namespace
 
-namespace CLItoLaserDESK
-{
+namespace CLItoLaserDESK {
     internal class Program {
+        // Configuration (can be loaded from a file or appsettings.json later)
+        // Keep your existing config for colain_parser, CLI input, DXF/JSON output directories.
+        static string laserDeskIpAddress = "127.0.0.1";
+        static int laserDeskPort = 3000;
+        static string templateJobPath = @"C:\\ProgramData\\Scanlab\\SLLaserDesk\\HardwareConfiguration.sld"; // IMPORTANT: Update this path
+        static string dxfToMarkPath = @"C:\\Users\\pin20\\Downloads\\SIMTech_Internship\\CLItoLaserDESK\\CLItoLaserDESK\\CLItoLaserDESK\\bin\\Debug\\net8.0\\DXF_Output\\Layer_0000.dxf";       // IMPORTANT: Update this path
+
         static async Task Main(string[] args) {
-            Console.WriteLine("LaserDESK CLI File Processor");
-            Console.WriteLine("----------------------------");
+            Console.WriteLine("LaserDESK Automation Program (Refactored)");
+            Console.WriteLine("---------------------------------------");
 
-            // --- Configuration ---
-            string colainExecutablePath = "colain_parser.exe";
-            string cliInputFilePath = "test.cli";
-            bool isLongCliFormat = true;
-            string dxfOutputDirectory = Path.Combine(AppContext.BaseDirectory, "DXF_Output");
-            string jsonOutputDirectory = Path.Combine(AppContext.BaseDirectory, "JSON_Output");
-
-            // LaserDESK Connection Parameters (defaults to 127.0.0.1:3000 in LaserDeskService)
-            string laserDeskIpAddress = "127.0.0.1";
-            int laserDeskPort = 3000;
-            // --- End Configuration ---
-
-            if (!File.Exists(colainExecutablePath)) {
+            // Validate paths (optional but good practice)
+            if (!File.Exists(templateJobPath)) {
                 Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"FATAL ERROR: Rust parser executable not found: '{colainExecutablePath}'");
-                Console.WriteLine("Please ensure the path is correct and the Rust parser has been built.");
+                Console.WriteLine($"FATAL ERROR: Template job file not found: '{templateJobPath}'");
                 Console.ResetColor();
-                Console.WriteLine("Press any key to exit."); Console.ReadKey();
-                return;
+                Console.WriteLine("Press any key to exit."); Console.ReadKey(); return;
             }
-            if (!File.Exists(cliInputFilePath)) {
+            if (!File.Exists(dxfToMarkPath)) {
                 Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"FATAL ERROR: CLI input file not found: '{cliInputFilePath}'");
+                Console.WriteLine($"FATAL ERROR: DXF file to mark not found: '{dxfToMarkPath}'");
                 Console.ResetColor();
-                Console.WriteLine("Press any key to exit."); Console.ReadKey();
-                return;
+                Console.WriteLine("Press any key to exit."); Console.ReadKey(); return;
             }
 
-            ILaserDeskService laserDeskService = null; // Declare here for use in finally block
+
+            ILaserDeskService laserService = new LaserDeskService();
 
             try {
-                // --- Step 0: Connect to laserDESK ---
-                Console.WriteLine("\n--- Connecting to laserDESK ---");
-                laserDeskService = new LaserDeskService(); // Create instance
-                if (laserDeskService.Connect(laserDeskIpAddress, laserDeskPort)) {
-                    Console.ForegroundColor = ConsoleColor.Cyan;
-                    Console.WriteLine("Successfully connected to laserDESK and entered Remote Mode.");
-                    Console.WriteLine($"  LaserDESK Version: {laserDeskService.GetLaserDeskVersion()}");
-                    Console.WriteLine($"  LaserDESK Status (hex): 0x{laserDeskService.GetLaserDeskStatus():X8}");
-                    Console.WriteLine($"  Is Remote Mode Active: {laserDeskService.IsRemoteModeActive()}");
+                // --- Connect to laserDESK ---
+                Console.WriteLine("\nAttempting to connect to laserDESK...");
+                if (!laserService.Connect(laserDeskIpAddress, laserDeskPort)) {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.Error.WriteLine("Failed to connect to laserDESK. Ensure it's running and configured.");
+                    Console.ResetColor();
+                    return;
+                }
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("Successfully connected to laserDESK.");
+                Console.WriteLine($"  Version: {laserService.GetLaserDeskVersion()}");
+                Console.WriteLine($"  Status: 0x{laserService.GetLaserDeskStatus():X8}");
+                Console.WriteLine($"  Remote Mode Active: {laserService.IsRemoteModeActive()}");
+                Console.ResetColor();
+
+                // --- Open Template Job ---
+                Console.WriteLine($"\nOpening template job: {Path.GetFileName(templateJobPath)}");
+                if (!laserService.OpenJob(templateJobPath)) // saveOld defaults to false
+                {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.Error.WriteLine("Failed to open template job.");
+                    Console.ResetColor();
+                    return;
+                }
+                Console.WriteLine("Template job opened.");
+                Console.WriteLine($"  Status after job open: 0x{laserService.GetLaserDeskStatus():X8}");
+
+
+                // --- Import DXF Layer ---
+                string importUID = "MyFirstTrace";
+                int optionFlags = 0x10; // enValues1to1 (use absolute coords from DXF)
+                Console.WriteLine($"\nImporting DXF: {Path.GetFileName(dxfToMarkPath)} with UID: {importUID}");
+                if (!laserService.ImportDxfLayer(dxfToMarkPath, importUID, optionFlags)) {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.Error.WriteLine("Failed to import DXF layer.");
+                    Console.ResetColor();
+                    return;
+                }
+                Console.WriteLine("DXF layer imported.");
+                Console.WriteLine($"  Status after import: 0x{laserService.GetLaserDeskStatus():X8}");
+
+                // For Z=0 test, we are not calling SetGlobal3DTransformation explicitly,
+                // relying on DXF Z-coordinates and the default machine Z setup.
+
+                // --- Optional: Manual Verification Pause ---
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine("\nPAUSE: Check laserDESK GUI. Is the DXF loaded correctly?");
+                Console.WriteLine("Ensure all safety precautions are met (eyewear, enclosure, test material).");
+                Console.WriteLine("Press Enter to START MARKING or Ctrl+C to abort.");
+                Console.ResetColor();
+                Console.ReadLine();
+
+                // --- Start Marking ---
+                Console.WriteLine("\nAttempting to start marking...");
+                if (!laserService.StartMarking()) {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.Error.WriteLine("Failed to start marking process. Check laser/RTC status.");
+                    Console.Error.WriteLine($"  LaserDESK Status: 0x{laserService.GetLaserDeskStatus():X8}");
+                    Console.ResetColor();
+                    return;
+                }
+                Console.WriteLine("Marking command sent. Waiting for completion...");
+
+                // --- Wait for Marking Completion ---
+                bool markingSuccess = await laserService.WaitForMarkingCompletionAsync(30000); // 30-second timeout
+
+                if (markingSuccess) {
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine("Marking completed successfully!");
                     Console.ResetColor();
                 } else {
                     Console.ForegroundColor = ConsoleColor.Red;
-                    Console.Error.WriteLine("Failed to connect to laserDESK. Please ensure laserDESK is running and configured for remote control.");
-                    Console.ResetColor();
-                    Console.WriteLine("Press any key to exit."); Console.ReadKey();
-                    return; // Exit if connection fails
-                }
-
-                // --- Step 1: Parse CLI file using the external Rust parser ---
-                CliParserRunner parserRunner = new CliParserRunner(colainExecutablePath);
-                Console.WriteLine($"\nAttempting to parse '{Path.GetFileName(cliInputFilePath)}' using '{Path.GetFileName(colainExecutablePath)}'...");
-
-                ParserOutput parserResult = await parserRunner.ParseCliFileAsync(cliInputFilePath, isLongCliFormat);
-                ParsedCliFile parsedData = parserResult.ParsedData; // Extract the parsed C# objects
-                string rawJson = parserResult.RawJsonOutput;      // Extract the raw JSON string
-
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine("\nSuccessfully parsed CLI file and deserialized JSON into C# objects!");
-                Console.ResetColor();
-
-                if (!Directory.Exists(jsonOutputDirectory)) {
-                    Directory.CreateDirectory(jsonOutputDirectory);
-                    Console.WriteLine($"Created JSON output directory: {jsonOutputDirectory}");
-                }
-                string jsonOutputFileName = $"{Path.GetFileNameWithoutExtension(cliInputFilePath)}_parsed.json";
-                string fullJsonPath = Path.Combine(jsonOutputDirectory, jsonOutputFileName);
-                try {
-                    await File.WriteAllTextAsync(fullJsonPath, rawJson); // Asynchronously write the JSON
-                    Console.ForegroundColor = ConsoleColor.DarkCyan;
-                    Console.WriteLine($"Successfully saved raw JSON output to: {fullJsonPath}");
-                    Console.ResetColor();
-                } catch (Exception jsonEx) {
-                    Console.ForegroundColor = ConsoleColor.Yellow;
-                    Console.WriteLine($"Warning: Could not save raw JSON output to '{fullJsonPath}': {jsonEx.Message}");
+                    Console.Error.WriteLine("Marking failed or timed out.");
                     Console.ResetColor();
                 }
+                Console.WriteLine($"  Final Status: 0x{laserService.GetLaserDeskStatus():X8}");
 
-
-                // Display some of the captured data from parsing
-                Console.WriteLine("\n--- Header Information (from CLI file) ---");
-                Console.WriteLine($"  Binary: {parsedData.Header.Binary}");
-                Console.WriteLine($"  Units: {parsedData.Header.Units}");
-                Console.WriteLine($"  Version: {parsedData.Header.Version}");
-                Console.WriteLine($"  Aligned: {parsedData.Header.Aligned}");
-                Console.WriteLine($"  Declared Layers in Header: {parsedData.Header.Layers?.ToString() ?? "N/A"}");
-
-                Console.WriteLine($"\n--- Layer Information (from CLI file) ---");
-                Console.WriteLine($"  Total Layers Parsed: {parsedData.Layers.Count}");
-
-                if (parsedData.Layers.Count > 0) {
-                    CliLayer sampleLayer = parsedData.Layers[0];
-                    Console.WriteLine($"  Sample Layer 0 (Index 0) Height: {sampleLayer.Height}");
-                    Console.WriteLine($"    Loops: {sampleLayer.Loops.Count}");
-                    Console.WriteLine($"    Hatches: {sampleLayer.Hatches.Count}");
-
-                    if (sampleLayer.Loops.Count > 0 && sampleLayer.Loops[0].Points.Count >= 2) {
-                        Console.WriteLine($"    First loop's first point (X,Y): ({sampleLayer.Loops[0].Points[0]}, {sampleLayer.Loops[0].Points[1]})");
-                    }
-                }
-
-                // --- Step 2: Generate DXF Files per Layer ---
-                if (parsedData.Layers.Count > 0) {
-                    Console.WriteLine("\n\n--- Generating DXF Files per Layer ---");
-
-                    if (!Directory.Exists(dxfOutputDirectory)) {
-                        Directory.CreateDirectory(dxfOutputDirectory);
-                        Console.WriteLine($"Created DXF output directory: {dxfOutputDirectory}");
-                    }
-
-                    DxfGenerator dxfGenerator = new DxfGenerator();
-
-                    for (int i = 0; i < parsedData.Layers.Count; i++) {
-                        CliLayer currentLayer = parsedData.Layers[i];
-
-                        string layerHeightStr = currentLayer.Height.ToString("F3", CultureInfo.InvariantCulture).Replace('.', '_');
-                        string dxfFileName = $"Layer_{i:D4}.dxf";
-                        string fullDxfPath = Path.Combine(dxfOutputDirectory, dxfFileName);
-
-                        Console.WriteLine($"  Generating DXF for Layer {i} (Height: {currentLayer.Height}). Output: {Path.GetFileName(fullDxfPath)}");
-
-                        try {
-                            bool success = dxfGenerator.GenerateDxfForLayer(currentLayer, fullDxfPath);
-                            if (success) {
-                                Console.ForegroundColor = ConsoleColor.DarkGreen;
-                                Console.WriteLine($"    Successfully generated: {Path.GetFileName(fullDxfPath)}");
-                                Console.ResetColor();
-
-                            } else {
-                                Console.ForegroundColor = ConsoleColor.Yellow;
-                                Console.WriteLine($"    Warning: DXF generation for {Path.GetFileName(fullDxfPath)} reported issues (Save returned false).");
-                                Console.ResetColor();
-                            }
-                        } catch (Exception dxfEx) {
-                            Console.ForegroundColor = ConsoleColor.Red;
-                            Console.Error.WriteLine($"    ERROR generating DXF for Layer {i} (File: {Path.GetFileName(fullDxfPath)}): {dxfEx.Message}");
-                            Console.ResetColor();
-                        }
-                    }
-                    Console.WriteLine($"\nDXF generation process complete. Files intended for: {dxfOutputDirectory}");
-                } else {
-                    Console.WriteLine("\nNo layers found in parsed data to generate DXF files for.");
-                }
-            } catch (FileNotFoundException fnfEx) {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"ERROR (File Not Found): {fnfEx.Message}");
-                Console.ResetColor();
-            } catch (Exception ex) // Catch-all for other exceptions from parsing or laserDESK connection
+            } catch (InvalidOperationException ioEx) // e.g., trying an operation when not connected
               {
                 Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"\nAN UNEXPECTED ERROR OCCURRED:");
-                Console.WriteLine(ex.ToString());
+                Console.Error.WriteLine($"Operation Error: {ioEx.Message}");
+                Console.ResetColor();
+            } catch (Exception ex) {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.Error.WriteLine($"An unexpected error occurred: {ex.Message}");
+                Console.Error.WriteLine(ex.StackTrace);
                 Console.ResetColor();
             } finally {
-                if (laserDeskService != null && laserDeskService.IsRemoteModeActive()) // Check if it was successfully connected
-                {
-                    Console.WriteLine("\n--- Disconnecting from laserDESK ---");
-                    laserDeskService.Disconnect();
-                } else if (laserDeskService != null) { // Was instantiated but maybe not fully connected/in remote mode
-                    Console.WriteLine("\n--- Ensuring laserDESK disconnection (if partially connected) ---");
-                    laserDeskService.Disconnect(); // Attempt disconnect anyway
-                }
-                Console.WriteLine("\nApplication finished. Press any key to exit.");
+                Console.WriteLine("\nDisconnecting from laserDESK...");
+                laserService.Dispose(); // This will call Disconnect()
+                Console.WriteLine("Application finished. Press any key to exit.");
                 Console.ReadKey();
             }
         }
