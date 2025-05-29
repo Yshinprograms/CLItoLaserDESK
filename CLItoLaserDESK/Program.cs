@@ -3,12 +3,12 @@
 using System;
 using System.IO;
 using System.Threading.Tasks;
-using System.Globalization;         // For CultureInfo in DXF filename formatting
-using CLItoLaserDESK.Core;          // To access CliParserRunner and DxfGenerator
-using CLItoLaserDESK.Core.Models;   // To access ParsedCliFile and other models
+using System.Globalization;
+using CLItoLaserDESK.Core;
+using CLItoLaserDESK.Core.Models;
 using CLItoLaserDESK.LaserDeskAPI;  // To access ILaserDeskService and LaserDeskService
 
-namespace CLItoLaserDESK // Your main console application's namespace
+namespace CLItoLaserDESK
 {
     internal class Program {
         static async Task Main(string[] args) {
@@ -16,18 +16,17 @@ namespace CLItoLaserDESK // Your main console application's namespace
             Console.WriteLine("----------------------------");
 
             // --- Configuration ---
-            // IMPORTANT: UPDATE THESE PATHS TO MATCH YOUR SYSTEM
             string colainExecutablePath = "colain_parser.exe";
-            string cliInputFilePath = "Box10.cli";
-            bool isLongCliFormat = true; // Confirmed 'long' worked for Box10.cli
-            string dxfOutputDirectory = Path.Combine(AppContext.BaseDirectory, "DXF_Output"); // Output DXFs to a subfolder where the .exe runs
+            string cliInputFilePath = "test.cli";
+            bool isLongCliFormat = true;
+            string dxfOutputDirectory = Path.Combine(AppContext.BaseDirectory, "DXF_Output");
+            string jsonOutputDirectory = Path.Combine(AppContext.BaseDirectory, "JSON_Output");
 
             // LaserDESK Connection Parameters (defaults to 127.0.0.1:3000 in LaserDeskService)
             string laserDeskIpAddress = "127.0.0.1";
             int laserDeskPort = 3000;
             // --- End Configuration ---
 
-            // Basic path validation for required executables and input files
             if (!File.Exists(colainExecutablePath)) {
                 Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine($"FATAL ERROR: Rust parser executable not found: '{colainExecutablePath}'");
@@ -69,11 +68,31 @@ namespace CLItoLaserDESK // Your main console application's namespace
                 CliParserRunner parserRunner = new CliParserRunner(colainExecutablePath);
                 Console.WriteLine($"\nAttempting to parse '{Path.GetFileName(cliInputFilePath)}' using '{Path.GetFileName(colainExecutablePath)}'...");
 
-                ParsedCliFile parsedData = await parserRunner.ParseCliFileAsync(cliInputFilePath, isLongCliFormat);
+                ParserOutput parserResult = await parserRunner.ParseCliFileAsync(cliInputFilePath, isLongCliFormat);
+                ParsedCliFile parsedData = parserResult.ParsedData; // Extract the parsed C# objects
+                string rawJson = parserResult.RawJsonOutput;      // Extract the raw JSON string
 
                 Console.ForegroundColor = ConsoleColor.Green;
                 Console.WriteLine("\nSuccessfully parsed CLI file and deserialized JSON into C# objects!");
                 Console.ResetColor();
+
+                if (!Directory.Exists(jsonOutputDirectory)) {
+                    Directory.CreateDirectory(jsonOutputDirectory);
+                    Console.WriteLine($"Created JSON output directory: {jsonOutputDirectory}");
+                }
+                string jsonOutputFileName = $"{Path.GetFileNameWithoutExtension(cliInputFilePath)}_parsed.json";
+                string fullJsonPath = Path.Combine(jsonOutputDirectory, jsonOutputFileName);
+                try {
+                    await File.WriteAllTextAsync(fullJsonPath, rawJson); // Asynchronously write the JSON
+                    Console.ForegroundColor = ConsoleColor.DarkCyan;
+                    Console.WriteLine($"Successfully saved raw JSON output to: {fullJsonPath}");
+                    Console.ResetColor();
+                } catch (Exception jsonEx) {
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine($"Warning: Could not save raw JSON output to '{fullJsonPath}': {jsonEx.Message}");
+                    Console.ResetColor();
+                }
+
 
                 // Display some of the captured data from parsing
                 Console.WriteLine("\n--- Header Information (from CLI file) ---");
@@ -87,7 +106,7 @@ namespace CLItoLaserDESK // Your main console application's namespace
                 Console.WriteLine($"  Total Layers Parsed: {parsedData.Layers.Count}");
 
                 if (parsedData.Layers.Count > 0) {
-                    CliLayer sampleLayer = parsedData.Layers[0]; // Display info for the first layer as a sample
+                    CliLayer sampleLayer = parsedData.Layers[0];
                     Console.WriteLine($"  Sample Layer 0 (Index 0) Height: {sampleLayer.Height}");
                     Console.WriteLine($"    Loops: {sampleLayer.Loops.Count}");
                     Console.WriteLine($"    Hatches: {sampleLayer.Hatches.Count}");
@@ -110,8 +129,9 @@ namespace CLItoLaserDESK // Your main console application's namespace
 
                     for (int i = 0; i < parsedData.Layers.Count; i++) {
                         CliLayer currentLayer = parsedData.Layers[i];
+
                         string layerHeightStr = currentLayer.Height.ToString("F3", CultureInfo.InvariantCulture).Replace('.', '_');
-                        string dxfFileName = $"Layer_{i:D4}_Z_{layerHeightStr}.dxf";
+                        string dxfFileName = $"Layer_{i:D4}.dxf";
                         string fullDxfPath = Path.Combine(dxfOutputDirectory, dxfFileName);
 
                         Console.WriteLine($"  Generating DXF for Layer {i} (Height: {currentLayer.Height}). Output: {Path.GetFileName(fullDxfPath)}");
@@ -123,19 +143,6 @@ namespace CLItoLaserDESK // Your main console application's namespace
                                 Console.WriteLine($"    Successfully generated: {Path.GetFileName(fullDxfPath)}");
                                 Console.ResetColor();
 
-                                // TODO - Future Step: Interface with LaserDeskService for this layer
-                                // if (laserDeskService.IsRemoteModeActive() && laserDeskService.IsReadyForExecution())
-                                // {
-                                //     Console.WriteLine($"    [LaserDESK Sim] Importing '{Path.GetFileName(fullDxfPath)}' at Z={currentLayer.Height}");
-                                //     // laserDeskService.LoadJobIfNeeded("path/to/template.SLJ"); // Might need a base job
-                                //     // laserDeskService.ImportDxfLayer(fullDxfPath);
-                                //     // laserDeskService.SetLayerZ(currentLayer.Height);
-                                //     // laserDeskService.StartMarking();
-                                //     // await laserDeskService.WaitForMarkingCompletion();
-                                //     // laserDeskService.ClearImportedGeometry(); // Or manage entities
-                                // } else {
-                                //     Console.WriteLine("    [LaserDESK Sim] LaserDESK not ready for marking this layer.");
-                                // }
                             } else {
                                 Console.ForegroundColor = ConsoleColor.Yellow;
                                 Console.WriteLine($"    Warning: DXF generation for {Path.GetFileName(fullDxfPath)} reported issues (Save returned false).");
@@ -159,7 +166,7 @@ namespace CLItoLaserDESK // Your main console application's namespace
               {
                 Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine($"\nAN UNEXPECTED ERROR OCCURRED:");
-                Console.WriteLine(ex.ToString()); // Provides full exception details including stack trace
+                Console.WriteLine(ex.ToString());
                 Console.ResetColor();
             } finally {
                 if (laserDeskService != null && laserDeskService.IsRemoteModeActive()) // Check if it was successfully connected

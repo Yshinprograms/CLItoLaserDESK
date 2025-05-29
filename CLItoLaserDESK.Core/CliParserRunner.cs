@@ -1,4 +1,5 @@
-﻿using System;
+﻿// File: CLItoLaserDESK.Core\CliParserRunner.cs
+using System;
 using System.Diagnostics;
 using System.IO;
 using System.Text.Json;
@@ -23,7 +24,8 @@ namespace CLItoLaserDESK.Core // Or CLItoLaserDESK.Core.Services
             };
         }
 
-        public async Task<ParsedCliFile> ParseCliFileAsync(string cliFilePath, bool isLongCli) {
+        // MODIFICATION 1: Change return type
+        public async Task<ParserOutput> ParseCliFileAsync(string cliFilePath, bool isLongCli) {
             if (string.IsNullOrWhiteSpace(cliFilePath))
                 throw new ArgumentNullException(nameof(cliFilePath));
             if (!File.Exists(cliFilePath))
@@ -44,20 +46,15 @@ namespace CLItoLaserDESK.Core // Or CLItoLaserDESK.Core.Services
                 Console.WriteLine($"[CliParserRunner] Executing: \"{process.StartInfo.FileName}\" {process.StartInfo.Arguments}");
                 process.Start();
 
-                // Asynchronously read stdout and stderr to prevent deadlocks
                 Task<string> outputJsonTask = process.StandardOutput.ReadToEndAsync();
                 Task<string> errorOutputTask = process.StandardError.ReadToEndAsync();
 
-                // Wait for the process to exit. Consider adding a timeout for robustness.
-                // For .NET Framework, process.WaitForExit() is synchronous.
-                // For .NET Core/.NET 5+, WaitForExitAsync is preferred.
-                await process.WaitForExitAsync(); // Or: await Task.Run(() => process.WaitForExit(timeoutMilliseconds));
+                await process.WaitForExitAsync();
 
                 string outputJson = await outputJsonTask;
                 string errorOutput = await errorOutputTask;
 
                 if (process.ExitCode != 0) {
-                    // Log the error output from the Rust tool for better diagnostics
                     Console.Error.WriteLine($"[CliParserRunner] colain_parser.exe Stderr: {errorOutput}");
                     throw new Exception($"colain_parser.exe failed with exit code {process.ExitCode}. See console for Stderr from the parser.");
                 }
@@ -68,22 +65,19 @@ namespace CLItoLaserDESK.Core // Or CLItoLaserDESK.Core.Services
                 }
 
                 try {
-                    // Deserialize, it might return null
                     ParsedCliFile? nullableParsedData = JsonSerializer.Deserialize<ParsedCliFile>(outputJson, _jsonSerializerOptions);
 
                     if (nullableParsedData == null) {
-                        // This handles the case where outputJson was "null" or some other scenario
-                        // where Deserialize returns null without throwing a JsonException.
                         string partialJson = outputJson.Length > 500 ? outputJson.Substring(0, 500) + "..." : outputJson;
                         Console.Error.WriteLine($"[CliParserRunner] Deserialization resulted in a null object. JSON: {partialJson}");
                         throw new InvalidOperationException("JSON deserialization resulted in a null object. The JSON might represent 'null' or be malformed in a way that doesn't throw JsonException but yields null.");
                     }
 
-                    // If we reach here, nullableParsedData is not null.
-                    ParsedCliFile parsedData = nullableParsedData; // Now assign to your non-nullable variable
+                    ParsedCliFile parsedData = nullableParsedData;
 
                     Console.WriteLine("[CliParserRunner] Successfully deserialized JSON output.");
-                    return parsedData; // parsedData is guaranteed non-null here by the check above.
+                    // MODIFICATION 2: Return ParserOutput containing both parsed data and raw JSON
+                    return new ParserOutput(parsedData, outputJson);
                 } catch (JsonException jsonEx) {
                     string partialJson = outputJson.Length > 1000 ? outputJson.Substring(0, 1000) + "..." : outputJson;
                     Console.Error.WriteLine($"[CliParserRunner] --- Problematic JSON Start (first 1000 chars) --- \n{partialJson}\n--- Problematic JSON End ---");
