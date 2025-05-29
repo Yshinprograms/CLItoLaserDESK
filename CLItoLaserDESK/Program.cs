@@ -3,11 +3,11 @@
 using System;
 using System.IO;
 using System.Threading.Tasks;
-using System.Globalization; // For CultureInfo in DXF filename formatting
-using CLItoLaserDESK.Core;    // To access CliParserRunner
-using CLItoLaserDESK.Core.Models; // To access ParsedCliFile and other models
+using System.Globalization;
+using CLItoLaserDESK.Core;
+using CLItoLaserDESK.Core.Models;
 
-namespace CLItoLaserDESK // Your main console application's namespace
+namespace CLItoLaserDESK
 {
     internal class Program {
         static async Task Main(string[] args) {
@@ -16,10 +16,10 @@ namespace CLItoLaserDESK // Your main console application's namespace
 
             // --- Configuration ---
             string colainExecutablePath = "colain_parser.exe";
-            string cliInputFilePath = "Tube.cli";
+            string cliInputFilePath = "test.cli";
             bool isLongCliFormat = true;
             string dxfOutputDirectory = Path.Combine(AppContext.BaseDirectory, "DXF_Output");
-            string jsonOutputDirectory = Path.Combine(AppContext.BaseDirectory, "JSON_Output"); // Output JSONs
+            string jsonOutputDirectory = Path.Combine(AppContext.BaseDirectory, "JSON_Output");
             // --- End Configuration ---
 
             if (!File.Exists(colainExecutablePath)) {
@@ -43,7 +43,6 @@ namespace CLItoLaserDESK // Your main console application's namespace
                 CliParserRunner parserRunner = new CliParserRunner(colainExecutablePath);
                 Console.WriteLine($"\nAttempting to parse '{Path.GetFileName(cliInputFilePath)}' using '{Path.GetFileName(colainExecutablePath)}'...");
 
-                // MODIFICATION 3: Receive ParserOutput
                 ParserOutput parserResult = await parserRunner.ParseCliFileAsync(cliInputFilePath, isLongCliFormat);
                 ParsedCliFile parsedData = parserResult.ParsedData; // Extract the parsed C# objects
                 string rawJson = parserResult.RawJsonOutput;      // Extract the raw JSON string
@@ -52,7 +51,6 @@ namespace CLItoLaserDESK // Your main console application's namespace
                 Console.WriteLine("\nSuccessfully parsed CLI file and deserialized JSON into C# objects!");
                 Console.ResetColor();
 
-                // MODIFICATION 4: Ensure JSON output directory exists and save the raw JSON
                 if (!Directory.Exists(jsonOutputDirectory)) {
                     Directory.CreateDirectory(jsonOutputDirectory);
                     Console.WriteLine($"Created JSON output directory: {jsonOutputDirectory}");
@@ -101,7 +99,6 @@ namespace CLItoLaserDESK // Your main console application's namespace
                         Directory.CreateDirectory(dxfOutputDirectory);
                         Console.WriteLine($"Created DXF output directory: {dxfOutputDirectory}");
                     }
-                    // JSON directory creation moved up
 
                     DxfGenerator dxfGenerator = new DxfGenerator();
 
